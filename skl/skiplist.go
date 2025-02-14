@@ -26,14 +26,16 @@ type node struct {
 
 	height uint16
 
-	// store next node offset for a specific height
+	// store next node offset for a specific height, the node's key is exactly larger than current node's key
 	tower [maxHeight]atomic.Uint32
 }
 
 type Skiplist struct {
-	height atomic.Int32 // skiplist level's height
-	arena  *Arena
-	head   *node
+	height  atomic.Int32 // skiplist level's height
+	arena   *Arena
+	head    *node
+	ref     atomic.Int32
+	onClose func()
 }
 
 func newNode(arena *Arena, key []byte, val structs.ValueStruct, height int) *node {
@@ -58,8 +60,13 @@ func decodeValue(value uint64) (valOffset uint32, valSize uint32) {
 	return
 }
 
-func (n *node) key(arena *Arena) []byte {
+func (n *node) getKey(arena *Arena) []byte {
 	return arena.getKey(n.keyOffset, n.keySize)
+}
+
+func (n *node) getValue(arena *Arena) structs.ValueStruct {
+	valOff, valSize := n.getValueOffsetAndSize()
+	return arena.getValue(valOff, valSize)
 }
 
 // setValue put value in arena and store it in node
@@ -89,7 +96,27 @@ func NewSkiplist(arenaSize int64) *Skiplist {
 	head := newNode(arena, nil, structs.ValueStruct{}, maxHeight)
 	s := &Skiplist{arena: arena, head: head}
 	s.height.Store(1) // initial height is 1
+	s.ref.Store(1)    // initial ref count
 	return s
+}
+
+func (s *Skiplist) IncrRef() {
+	s.ref.Add(1)
+}
+
+func (s *Skiplist) DecrRef() {
+	refCnt := s.ref.Add(-1)
+	if refCnt > 0 {
+		return
+	}
+	// reference count is 0
+	if s.onClose != nil {
+		s.onClose()
+	}
+
+	// clean up resource
+	s.arena = nil
+	s.head = nil
 }
 
 func (s *Skiplist) Put(key []byte, val structs.ValueStruct) {
@@ -133,7 +160,8 @@ func (s *Skiplist) Put(key []byte, val structs.ValueStruct) {
 				utils.AssertTrue(prev[i] != next[i])
 			}
 
-			// prev next node offset
+			// link: prev[i].offset -> x.offset -> next[i].offset
+			// prev next node offset, if next[i] is nil, we will set this node as
 			nextNodeOffset := s.arena.getNodeOffset(next[i])
 			// update the next offset in the tower of this node
 			x.tower[i].Store(nextNodeOffset)
@@ -160,9 +188,7 @@ func (s *Skiplist) Get(key []byte) structs.ValueStruct {
 		return structs.ValueStruct{}
 	}
 
-	vOffset, vSize := n.getValueOffsetAndSize()
-	v := s.arena.getValue(vOffset, vSize)
-	return v
+	return n.getValue(s.arena)
 }
 
 func (s *Skiplist) getHeight() int32 {
@@ -192,7 +218,7 @@ func (s *Skiplist) findSpliceForLevel(key []byte, before *node, level int) (*nod
 			// before is the biggest node
 			return before, next
 		}
-		nextKey := next.key(s.arena)
+		nextKey := next.getKey(s.arena)
 		cmp := utils.CompareKeys(key, nextKey) // To find a node happens to be greater than key
 		if cmp == 0 {
 			return next, next
@@ -209,6 +235,7 @@ func (s *Skiplist) findSpliceForLevel(key []byte, before *node, level int) (*nod
 // findNear, less and allowEqual could be defined as
 // [less: true, allowEqual: false => "<"], [less: true, allowEqual: true => "<="]
 // [less: false, allowEqual: false => ">"], [less: true, allowEqual: true => ">="]
+// Big-O: log(n) to search key on Skiplist
 func (s *Skiplist) findNear(key []byte, less bool, allowEqual bool) (*node, bool) {
 	// x is the search head, will move right if iterate over the same height
 	x := s.head
@@ -233,7 +260,7 @@ func (s *Skiplist) findNear(key []byte, less bool, allowEqual bool) (*node, bool
 			return x, false
 		}
 
-		nextKey := next.key(s.arena)
+		nextKey := next.getKey(s.arena)
 		cmp := utils.CompareKeys(key, nextKey)
 		if cmp > 0 {
 			// key > nextKey, search on tower's order for a height
@@ -273,4 +300,77 @@ func (s *Skiplist) findNear(key []byte, less bool, allowEqual bool) (*node, bool
 			return x, false
 		}
 	}
+}
+
+func (s *Skiplist) findLast() *node {
+	x := s.head
+	height := int(s.getHeight() - 1)
+	for {
+		next := s.getNext(x, height)
+		if next != nil {
+			// search on the height util reach to the end
+			x = next
+			continue
+		}
+		if x == s.head {
+			return nil
+		}
+		if height == 0 {
+			return x
+		}
+		height--
+	}
+}
+
+// <---------------------- iterator --------------------->
+
+// Iterator to iterate all the [key, value] pair on height 0
+type Iterator struct {
+	skl *Skiplist
+	n   *node // The item to iterate over
+}
+
+func NewIterator(skl *Skiplist) *Iterator {
+	skl.IncrRef()
+	return &Iterator{skl: skl}
+}
+
+func (it *Iterator) Close() error {
+	it.skl.DecrRef()
+	return nil
+}
+
+func (it *Iterator) Valid() bool {
+	return it.n != nil
+}
+
+func (it *Iterator) Next() {
+	utils.AssertTrue(it.Valid())
+	it.n = it.skl.getNext(it.n, 0)
+}
+
+func (it *Iterator) Prev() {
+	utils.AssertTrue(it.Valid())
+	key := it.n.getKey(it.skl.arena)
+	it.n, _ = it.skl.findNear(key, true, false) // find "<"
+}
+
+func (it *Iterator) Seek(key []byte) {
+	it.n, _ = it.skl.findNear(key, false, true) // ">=" key
+}
+
+func (it *Iterator) SeekToFirst() {
+	it.n = it.skl.getNext(it.skl.head, 0)
+}
+
+func (it *Iterator) SeekToLast() {
+	it.n = it.skl.findLast()
+}
+
+func (it *Iterator) Key() []byte {
+	return it.n.getKey(it.skl.arena)
+}
+
+func (it *Iterator) Value() structs.ValueStruct {
+	return it.n.getValue(it.skl.arena)
 }

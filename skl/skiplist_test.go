@@ -33,6 +33,7 @@ func length(s *Skiplist) int {
 func TestEmpty(t *testing.T) {
 	key := []byte("key")
 	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
 
 	v := l.Get(key)
 	require.Nil(t, v.Value)
@@ -48,6 +49,7 @@ func TestEmpty(t *testing.T) {
 
 func TestBasic(t *testing.T) {
 	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
 	v1 := newValue(10)
 	v2 := newValue(20)
 	v3 := newValue(30)
@@ -95,6 +97,7 @@ func TestBasic(t *testing.T) {
 
 func TestFindNearest(t *testing.T) {
 	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
 
 	for i := 1000 - 1; i >= 0; i-- {
 		key := fmt.Sprintf("%05d", i*10+5)
@@ -105,11 +108,11 @@ func TestFindNearest(t *testing.T) {
 	n, eq := l.findNear(utils.KeyWithTs([]byte("00001"), 0), false, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("00001"), 0), false, true)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("00001"), 0), true, false)
 	require.Nil(t, n)
 	require.False(t, eq)
@@ -121,54 +124,54 @@ func TestFindNearest(t *testing.T) {
 	n, eq = l.findNear(utils.KeyWithTs([]byte("00005"), 0), false, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("00015"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("00015"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("00005"), 0), false, true)
 	require.NotNil(t, n)
 	require.True(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("00005"), 0), true, false)
 	require.Nil(t, n)
 	require.False(t, eq)
 	n, eq = l.findNear(utils.KeyWithTs([]byte("00005"), 0), true, true)
 	require.NotNil(t, n)
 	require.True(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("00005"), 0), n.getKey(l.arena))
 
 	// case 3
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05555"), 0), false, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05565"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05565"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05555"), 0), false, true)
 	require.NotNil(t, n)
 	require.True(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05555"), 0), true, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05545"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05545"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05555"), 0), true, true)
 	require.NotNil(t, n)
 	require.True(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.getKey(l.arena))
 
 	// case 3
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05558"), 0), false, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05565"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05565"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05558"), 0), false, true)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05565"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05565"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05558"), 0), true, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("05558"), 0), true, true)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("05555"), 0), n.getKey(l.arena))
 
 	// case 4 largest key
 	n, eq = l.findNear(utils.KeyWithTs([]byte("09995"), 0), false, false)
@@ -177,15 +180,15 @@ func TestFindNearest(t *testing.T) {
 	n, eq = l.findNear(utils.KeyWithTs([]byte("09995"), 0), false, true)
 	require.NotNil(t, n)
 	require.True(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("09995"), 0), true, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("09985"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("09985"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("09995"), 0), true, true)
 	require.NotNil(t, n)
 	require.True(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.getKey(l.arena))
 
 	// case 5 beyond largest key
 	n, eq = l.findNear(utils.KeyWithTs([]byte("59995"), 0), false, false)
@@ -197,17 +200,18 @@ func TestFindNearest(t *testing.T) {
 	n, eq = l.findNear(utils.KeyWithTs([]byte("59995"), 0), true, false)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.getKey(l.arena))
 	n, eq = l.findNear(utils.KeyWithTs([]byte("59995"), 0), true, true)
 	require.NotNil(t, n)
 	require.False(t, eq)
-	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.key(l.arena))
+	require.EqualValues(t, utils.KeyWithTs([]byte("09995"), 0), n.getKey(l.arena))
 }
 
 func TestConcurrentBasic(t *testing.T) {
 	var wg sync.WaitGroup
 
 	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
 	n := 1000
 
 	key := func(i int) []byte {
@@ -243,6 +247,7 @@ func TestConcurrentBasicBigValue(t *testing.T) {
 	var wg sync.WaitGroup
 
 	l := NewSkiplist(120 << 20) // 120MB
+	defer l.DecrRef()
 	n := 100
 
 	key := func(i int) []byte {
@@ -280,6 +285,7 @@ func TestConcurrentBasicBigValue(t *testing.T) {
 func TestOneKey(t *testing.T) {
 	var wg sync.WaitGroup
 	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
 	n := 100
 
 	key := utils.KeyWithTs([]byte(fmt.Sprintf("onekey")), 0)
@@ -316,6 +322,103 @@ func TestOneKey(t *testing.T) {
 	require.Equal(t, 1, length(l))
 }
 
+func TestIteratorNext(t *testing.T) {
+	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
+	iter := NewIterator(l)
+	defer iter.Close()
+	require.False(t, iter.Valid())
+	iter.SeekToFirst()
+	require.False(t, iter.Valid())
+
+	n := 100
+	for i := n - 1; i >= 0; i-- {
+		key := fmt.Sprintf("%05d", i*10+5)
+		l.Put(utils.KeyWithTs([]byte(key), 0), structs.ValueStruct{Value: newValue(i)})
+	}
+
+	iter.SeekToFirst()
+	require.True(t, iter.Valid())
+	for i := 0; iter.Valid(); iter.Next() {
+		require.True(t, iter.Valid())
+		key := fmt.Sprintf("%05d", i*10+5)
+		require.Equal(t, utils.KeyWithTs([]byte(key), 0), iter.Key())
+
+		value := iter.Value()
+		require.Equal(t, newValue(i), value.Value)
+
+		i++
+	}
+}
+
+func TestIteratorPrev(t *testing.T) {
+	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
+	iter := NewIterator(l)
+	defer iter.Close()
+	require.False(t, iter.Valid())
+	iter.SeekToLast()
+	require.False(t, iter.Valid())
+
+	n := 100
+	for i := n - 1; i >= 0; i-- {
+		key := fmt.Sprintf("%05d", i*10+5)
+		l.Put(utils.KeyWithTs([]byte(key), 0), structs.ValueStruct{Value: newValue(i)})
+	}
+
+	iter.SeekToLast()
+	require.True(t, iter.Valid())
+	for i := n - 1; iter.Valid(); iter.Prev() {
+		require.True(t, iter.Valid())
+		key := fmt.Sprintf("%05d", i*10+5)
+		require.Equal(t, utils.KeyWithTs([]byte(key), 0), iter.Key())
+
+		value := iter.Value()
+		require.Equal(t, newValue(i), value.Value)
+
+		i--
+	}
+}
+
+func TestIteratorSeek(t *testing.T) {
+	l := NewSkiplist(arenaSize)
+	defer l.DecrRef()
+	iter := NewIterator(l)
+	defer iter.Close()
+	require.False(t, iter.Valid())
+	iter.SeekToFirst()
+	require.False(t, iter.Valid())
+
+	n := 100
+	for i := n - 1; i >= 0; i-- {
+		key := fmt.Sprintf("%05d", i*10+5)
+		l.Put(utils.KeyWithTs([]byte(key), 0), structs.ValueStruct{Value: newValue(i)})
+	}
+
+	iter.SeekToFirst()
+	require.True(t, iter.Valid())
+	require.Equal(t, utils.KeyWithTs([]byte("00005"), 0), iter.Key())
+	require.EqualValues(t, "00000", iter.Value().Value)
+
+	iter.Seek(utils.KeyWithTs([]byte("00010"), 0))
+	require.True(t, iter.Valid())
+	require.Equal(t, utils.KeyWithTs([]byte("00015"), 0), iter.Key())
+	require.EqualValues(t, "00001", string(iter.Value().Value))
+
+	iter.Seek(utils.KeyWithTs([]byte("00025"), 0))
+	require.True(t, iter.Valid())
+	require.Equal(t, utils.KeyWithTs([]byte("00025"), 0), iter.Key())
+	require.EqualValues(t, "00002", string(iter.Value().Value))
+
+	iter.Seek(utils.KeyWithTs([]byte("00995"), 0))
+	require.True(t, iter.Valid())
+	require.Equal(t, utils.KeyWithTs([]byte("00995"), 0), iter.Key())
+	require.EqualValues(t, "00099", string(iter.Value().Value))
+
+	iter.Seek(utils.KeyWithTs([]byte("01000"), 0))
+	require.False(t, iter.Valid())
+}
+
 func randomKey(r *rand.Rand) []byte {
 	key := make([]byte, 8)
 	k1, k2 := r.Uint32(), r.Uint32()
@@ -325,7 +428,7 @@ func randomKey(r *rand.Rand) []byte {
 }
 
 func BenchmarkPut(b *testing.B) {
-	value := newValue(100)
+	value := newValue(123)
 	l := NewSkiplist(int64((b.N + 1) * MaxNodeSize))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -334,4 +437,53 @@ func BenchmarkPut(b *testing.B) {
 			l.Put(randomKey(r), structs.ValueStruct{Value: value, Meta: 0})
 		}
 	})
+}
+
+// Some fraction is read. Some fraction is write.
+func BenchmarkGetPut(b *testing.B) {
+	value := newValue(123)
+	for i := 0; i < 10; i++ {
+		readFrac := float32(i) / 10.0
+		b.Run(fmt.Sprintf("frac_%d", i), func(b *testing.B) {
+			l := NewSkiplist(int64((b.N + 1) * MaxNodeSize))
+			defer l.DecrRef()
+			b.ResetTimer()
+			b.RunParallel(func(pb *testing.PB) {
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				for pb.Next() {
+					if r.Float32() < readFrac {
+						l.Get(randomKey(r))
+					} else {
+						l.Put(randomKey(r), structs.ValueStruct{Value: value, Meta: 0})
+					}
+				}
+			})
+		})
+	}
+}
+
+func BenchmarkGetWriteMap(b *testing.B) {
+	value := newValue(123)
+	for i := 0; i < 10; i++ {
+		readFrac := float32(i) / 10.0
+		b.Run(fmt.Sprintf("frac_%d", i), func(b *testing.B) {
+			m := make(map[string][]byte)
+			var mutex sync.RWMutex
+			b.ResetTimer()
+			b.RunParallel(func(pb *testing.PB) {
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				for pb.Next() {
+					if r.Float32() < readFrac {
+						mutex.RLock()
+						_ = m[string(randomKey(r))]
+						mutex.RUnlock()
+					} else {
+						mutex.Lock()
+						m[string(randomKey(r))] = value
+						mutex.Unlock()
+					}
+				}
+			})
+		})
+	}
 }
