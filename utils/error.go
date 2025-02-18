@@ -8,6 +8,10 @@ import (
 
 var debugMode = false
 
+var (
+	ErrEOF = errors.New("ErrEOF: End of file")
+)
+
 // Check logs fatal if err != nil.
 func Check(err error) {
 	if err != nil {

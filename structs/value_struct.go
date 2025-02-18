@@ -1,6 +1,9 @@
 package structs
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"tiny-badger/utils"
+)
 
 type ValueStruct struct {
 	Meta      byte
@@ -8,20 +11,9 @@ type ValueStruct struct {
 	Value     []byte
 }
 
-func sizeVarint(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
-}
-
 func (v *ValueStruct) EncodedSize() uint32 {
 	sz := len(v.Value) + 1
-	enc := sizeVarint(v.ExpiresAt)
+	enc := utils.SizeVarint(v.ExpiresAt)
 	return uint32(sz + enc)
 }
 
