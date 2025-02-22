@@ -31,13 +31,13 @@ func TestOpen(t *testing.T) {
 	f := makeTmpFile()
 	defer destoryFile(f.Name())
 
-	lf := newLogFile(f.Name(), int(f.Fd()))
-	err := lf.open(os.O_RDWR, logfileSize)
+	lf := NewLogFile(f.Name(), int(f.Fd()))
+	err := lf.Open(os.O_RDWR, logfileSize)
 	require.Equal(t, z.NewFile, err)
 }
 
 func TestEncodeDecode(t *testing.T) {
-	lf := newLogFile("", 0)
+	lf := NewLogFile("", 0)
 	buf := new(bytes.Buffer)
 	// empty entry
 	entry := &structs.Entry{}
@@ -74,8 +74,8 @@ func TestWriteReadEntry(t *testing.T) {
 	f := makeTmpFile()
 	defer destoryFile(f.Name())
 
-	lf := newLogFile(f.Name(), int(f.Fd()))
-	err := lf.open(os.O_RDWR, logfileSize)
+	lf := NewLogFile(f.Name(), int(f.Fd()))
+	err := lf.Open(os.O_RDWR, logfileSize)
 	require.Equal(t, z.NewFile, err)
 
 	vp := structs.ValuePointer{
@@ -91,7 +91,7 @@ func TestWriteReadEntry(t *testing.T) {
 		Meta:      1,
 		ExpiresAt: uint64(time.Now().Unix()),
 	}
-	err = lf.writeEntry(buf, entry)
+	err = lf.WriteEntry(buf, entry)
 	require.NoError(t, err)
 	vp.Len = lf.writeAt - vp.Offset
 

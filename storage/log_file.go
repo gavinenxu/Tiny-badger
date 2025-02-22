@@ -8,7 +8,7 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
-	tinyBadger "tiny-badger"
+	"tiny-badger/config"
 	"tiny-badger/structs"
 	"tiny-badger/utils"
 )
@@ -21,26 +21,26 @@ const (
 	vlogHeaderSize = 20
 )
 
-// logFile inheritance mmap
-type logFile struct {
+// LogFile inheritance mmap
+type LogFile struct {
 	*z.MmapFile
 	path    string
 	lock    sync.RWMutex
 	fid     uint32
 	size    atomic.Uint32
 	writeAt uint32
-	opts    tinyBadger.Options
+	opts    config.Options
 }
 
-func newLogFile(path string, fid int) *logFile {
-	return &logFile{
+func NewLogFile(path string, fid int) *LogFile {
+	return &LogFile{
 		fid:     uint32(fid),
 		path:    path,
 		writeAt: vlogHeaderSize,
 	}
 }
 
-func (lf *logFile) open(flags int, fsize int64) error {
+func (lf *LogFile) Open(flags int, fsize int64) error {
 	mf, err := z.OpenMmapFile(lf.path, flags, int(fsize))
 	lf.MmapFile = mf
 
@@ -53,7 +53,7 @@ func (lf *logFile) open(flags int, fsize int64) error {
 	return err
 }
 
-func (lf *logFile) writeEntry(buf *bytes.Buffer, entry *structs.Entry) error {
+func (lf *LogFile) WriteEntry(buf *bytes.Buffer, entry *structs.Entry) error {
 	buf.Reset()
 	recordLen, err := lf.encodeEntry(buf, entry, lf.writeAt)
 	if err != nil {
@@ -65,7 +65,7 @@ func (lf *logFile) writeEntry(buf *bytes.Buffer, entry *structs.Entry) error {
 	return nil
 }
 
-func (lf *logFile) read(p structs.ValuePointer) (buf []byte, err error) {
+func (lf *LogFile) read(p structs.ValuePointer) (buf []byte, err error) {
 	size := int64(len(lf.Data))
 	if int64(p.Offset) >= size || int64(p.Offset+p.Len) > size {
 		err = utils.ErrEOF
@@ -80,7 +80,7 @@ func (lf *logFile) read(p structs.ValuePointer) (buf []byte, err error) {
 // +--------+-----+-------+-------+
 // | header | key | value | crc32 |
 // +--------+-----+-------+-------+
-func (lf *logFile) encodeEntry(buf *bytes.Buffer, entry *structs.Entry, offset uint32) (int, error) {
+func (lf *LogFile) encodeEntry(buf *bytes.Buffer, entry *structs.Entry, offset uint32) (int, error) {
 	h := structs.Header{
 		KeyLen:    uint32(len(entry.Key)),
 		ValLen:    uint32(len(entry.Value)),
@@ -109,7 +109,7 @@ func (lf *logFile) encodeEntry(buf *bytes.Buffer, entry *structs.Entry, offset u
 	return len(headerEnc[:sz]) + len(entry.Key) + len(entry.Value) + len(crcBuf), nil
 }
 
-func (lf *logFile) decodeEntry(buf []byte, offset uint32) (*structs.Entry, error) {
+func (lf *LogFile) decodeEntry(buf []byte, offset uint32) (*structs.Entry, error) {
 	var h structs.Header
 	headerLen := h.Decode(buf)
 	kv := buf[headerLen:]

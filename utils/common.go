@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"hash/crc32"
+	"os"
 )
 
 var (
@@ -41,4 +42,13 @@ func SizeVarint(x uint64) (n int) {
 		}
 	}
 	return n
+}
+
+func CreateTmpDir(pat string) string {
+	dir, _ := os.MkdirTemp("/tmp", pat)
+	return dir
+}
+
+func DestroyDir(dir string) {
+	_ = os.RemoveAll(dir)
 }

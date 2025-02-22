@@ -191,6 +191,14 @@ func (s *Skiplist) Get(key []byte) structs.ValueStruct {
 	return n.getValue(s.arena)
 }
 
+func (s *Skiplist) IsEmpty() bool {
+	return s.findLast() == nil
+}
+
+func (s *Skiplist) SetOnClose(f func()) {
+	s.onClose = f
+}
+
 func (s *Skiplist) getHeight() int32 {
 	return s.height.Load()
 }
