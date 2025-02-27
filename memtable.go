@@ -160,6 +160,10 @@ func (mt *MemTable) DecrRef() {
 	mt.skl.DecrRef()
 }
 
+func (mt *MemTable) SyncWal() error {
+	return mt.wal.Sync()
+}
+
 func (mt *MemTable) isFull() bool {
 	return false
 }

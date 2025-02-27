@@ -10,6 +10,8 @@ var debugMode = false
 
 var (
 	ErrEOF = errors.New("ErrEOF: End of file")
+
+	ErrDBClosed = errors.New("DB Closed")
 )
 
 // Check logs fatal if err != nil.
