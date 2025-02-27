@@ -9,6 +9,7 @@ type ValueStruct struct {
 	Meta      byte
 	ExpiresAt uint64
 	Value     []byte
+	Version   uint64
 }
 
 func (v *ValueStruct) EncodedSize() uint32 {
