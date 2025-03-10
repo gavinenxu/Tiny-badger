@@ -1,6 +1,7 @@
 package tiny_badger
 
 import (
+	"expvar"
 	"github.com/dgraph-io/ristretto/v2/z"
 	"github.com/pkg/errors"
 	"sync"
@@ -81,7 +82,7 @@ func (db *DB) Close() error {
 	return nil
 }
 
-func (db *DB) sendToWriteCh(entries []*structs.Entry) error {
+func (db *DB) sendToWriteCh(entries []*structs.Entry) (*request, error) {
 	// todo calc metrics and determine whether to execute next request
 
 	req := requestPool.Get().(*request)
@@ -90,21 +91,23 @@ func (db *DB) sendToWriteCh(entries []*structs.Entry) error {
 	req.Wg.Add(1)
 	db.writeCh <- req // handled in doWrites
 
-	return nil
+	return req, nil
 }
 
 // doWrites handles concurrent writes to memtable in sequential order in a batch
 func (db *DB) doWrites(lc *z.Closer) {
 	defer lc.Done()
-	// handle batch write
 	pendingCh := make(chan struct{}, 1)
 
-	writeRequestsBatch := func(reqs []*request) {
+	writeRequests := func(reqs []*request) {
 		if err := db.writeRequests(reqs); err != nil {
 			db.log.Errorf("writeRequests: %v", err)
 		}
 		<-pendingCh
 	}
+
+	// This variable tracks the number of pending writes.
+	reqLen := new(expvar.Int)
 
 	reqs := make([]*request, 0, 10)
 	for {
@@ -112,47 +115,108 @@ func (db *DB) doWrites(lc *z.Closer) {
 		select {
 		case r = <-db.writeCh:
 		case <-lc.HasBeenClosed():
-			goto closeCase
+			goto closedCase
 		}
 
 		for {
 			reqs = append(reqs, r)
+			reqLen.Set(int64(len(reqs)))
 
-			// force to flush to disk
 			if len(reqs) >= 3*kvWriteChCapacity {
-				pendingCh <- struct{}{} // blocking until previous batch finish
+				pendingCh <- struct{}{} // blocking.
 				goto writeCase
 			}
 
-			// choose the case randomly, either to pick from write channel or write to db and set to pending state
 			select {
-			case r = <-db.writeCh: // continue to pick from writeCh
-			case pendingCh <- struct{}{}: // push to pending chan and execute this batch write
+			// Either push to pending, or continue to pick from writeCh.
+			case r = <-db.writeCh:
+			case pendingCh <- struct{}{}:
 				goto writeCase
 			case <-lc.HasBeenClosed():
-				goto closeCase
+				goto closedCase
+			}
+		}
+
+	closedCase:
+		// All the pending request are drained.
+		// Don't close the writeCh, because it has be used in several places.
+		for {
+			select {
+			case r = <-db.writeCh:
+				reqs = append(reqs, r)
+			default:
+				pendingCh <- struct{}{} // Push to pending before doing a write.
+				writeRequests(reqs)
+				return
 			}
 		}
 
 	writeCase:
-		go writeRequestsBatch(reqs)
-		// reset new batch of requests
+		go writeRequests(reqs)
 		reqs = make([]*request, 0, 10)
-
-	closeCase:
-		for {
-			select {
-			// drain the pending requests
-			case r = <-db.writeCh:
-				reqs = append(reqs, r)
-			default:
-				pendingCh <- struct{}{}
-				writeRequestsBatch(reqs)
-				return
-			}
-		}
+		reqLen.Set(0)
 	}
 }
+
+//func (db *DB) doWrites(lc *z.Closer) {
+//	defer lc.Done()
+//	// handle batch write
+//	pendingCh := make(chan struct{}, 1)
+//
+//	writeRequestsBatch := func(reqs []*request) {
+//		if err := db.writeRequests(reqs); err != nil {
+//			db.log.Errorf("writeRequests: %v", err)
+//		}
+//		<-pendingCh
+//	}
+//
+//	reqs := make([]*request, 0, 10)
+//	for {
+//		var r *request
+//		select {
+//		case r = <-db.writeCh:
+//		case <-lc.HasBeenClosed():
+//			goto closeCase
+//		}
+//
+//		for {
+//			reqs = append(reqs, r)
+//
+//			// force to flush to disk
+//			if len(reqs) >= 3*kvWriteChCapacity {
+//				pendingCh <- struct{}{} // blocking until previous batch finish
+//				goto writeCase
+//			}
+//
+//			// choose the case randomly, either to pick from write channel or write to db and set to pending state
+//			select {
+//			case r = <-db.writeCh: // continue to pick from writeCh
+//			case pendingCh <- struct{}{}: // push to pending chan and execute this batch write
+//				goto writeCase
+//			case <-lc.HasBeenClosed():
+//				goto closeCase
+//			}
+//		}
+//
+//	writeCase:
+//		go writeRequestsBatch(reqs)
+//		// reset new batch of requests
+//		reqs = make([]*request, 0, 10)
+//
+//	closeCase:
+//		for {
+//			select {
+//			// drain the pending requests
+//			case r = <-db.writeCh:
+//				reqs = append(reqs, r)
+//			default:
+//				pendingCh <- struct{}{}
+//				writeRequestsBatch(reqs)
+//				return
+//			}
+//		}
+//	}
+//}
 
 // writeRequests is called serially by only one goroutine.
 func (db *DB) writeRequests(reqs []*request) error {
@@ -241,8 +305,9 @@ func (db *DB) get(key []byte) (structs.ValueStruct, error) {
 		}
 	}
 
+	return maxVs, nil
 	// todo get from level controller
-	return structs.ValueStruct{}, nil
+	//return structs.ValueStruct{}, nil
 }
 
 // getMemtables from latest records to the oldest records

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"hash/crc32"
 	"os"
+	"time"
 )
 
 var (
@@ -51,4 +52,18 @@ func CreateTmpDir(pat string) string {
 
 func DestroyDir(dir string) {
 	_ = os.RemoveAll(dir)
+}
+
+func IsDeletedOrExpired(meta byte, expiresAt uint64) bool {
+	if meta&bitDeleted > 0 {
+		return true
+	}
+	if expiresAt == 0 {
+		return false
+	}
+	return expiresAt <= uint64(time.Now().Unix())
+}
+
+func SafeCopy(d, src []byte) []byte {
+	return append(d[:0], src...)
 }

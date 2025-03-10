@@ -12,6 +12,12 @@ var (
 	ErrEOF = errors.New("ErrEOF: End of file")
 
 	ErrDBClosed = errors.New("DB Closed")
+
+	ErrEmptyKey = errors.New("Key cannot be empty")
+
+	ErrDiscardedTxn = errors.New("This transaction is discarded. Create a new one")
+
+	ErrKeyNotFound = errors.New("Key not found")
 )
 
 // Check logs fatal if err != nil.

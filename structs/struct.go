@@ -22,6 +22,11 @@ func NewEntry(key, val []byte) *Entry {
 	}
 }
 
+func (e *Entry) WithMeta(meta byte) *Entry {
+	e.Meta = meta
+	return e
+}
+
 type ValuePointer struct {
 	Fid    uint32
 	Len    uint32
