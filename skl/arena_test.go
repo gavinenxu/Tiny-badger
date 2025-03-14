@@ -22,6 +22,7 @@ func TestArenaBasic(t *testing.T) {
 
 	v := structs.ValueStruct{
 		Meta:      1,
+		UserMeta:  2,
 		ExpiresAt: 1,
 		Value:     []byte{1, 2, 3},
 	}

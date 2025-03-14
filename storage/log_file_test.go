@@ -43,12 +43,13 @@ func TestEncodeDecode(t *testing.T) {
 	entry := &structs.Entry{}
 	sz, err := lf.encodeEntry(buf, entry, 0)
 	require.NoError(t, err)
-	require.EqualValues(t, 8, sz)
+	require.EqualValues(t, 9, sz)
 	e, err := lf.decodeEntry(buf.Bytes(), 0)
 	require.NoError(t, err)
 	require.EqualValues(t, []byte{}, e.Key)
 	require.EqualValues(t, []byte{}, e.Value)
 	require.Equal(t, byte(0), e.Meta)
+	require.Equal(t, byte(0), e.UserMeta)
 	require.Equal(t, uint64(0), e.ExpiresAt)
 
 	buf.Reset()
@@ -57,16 +58,18 @@ func TestEncodeDecode(t *testing.T) {
 		Key:       []byte("key"),
 		Value:     []byte("value"),
 		Meta:      1,
+		UserMeta:  2,
 		ExpiresAt: uint64(time.Now().Unix()),
 	}
 	sz, err = lf.encodeEntry(buf, entry, 0)
 	require.NoError(t, err)
-	require.EqualValues(t, 7+utils.SizeVarint(entry.ExpiresAt)+len(entry.Key)+len(entry.Value), sz)
+	require.EqualValues(t, 8+utils.SizeVarint(entry.ExpiresAt)+len(entry.Key)+len(entry.Value), sz)
 	e, err = lf.decodeEntry(buf.Bytes(), 0)
 	require.NoError(t, err)
 	require.EqualValues(t, []byte("key"), e.Key)
 	require.EqualValues(t, []byte("value"), e.Value)
 	require.Equal(t, byte(1), e.Meta)
+	require.Equal(t, byte(2), e.UserMeta)
 	require.Equal(t, entry.ExpiresAt, e.ExpiresAt)
 }
 
@@ -89,6 +92,7 @@ func TestWriteReadEntry(t *testing.T) {
 		Key:       []byte("key"),
 		Value:     []byte("value"),
 		Meta:      1,
+		UserMeta:  2,
 		ExpiresAt: uint64(time.Now().Unix()),
 	}
 	err = lf.WriteEntry(buf, entry)
@@ -103,5 +107,6 @@ func TestWriteReadEntry(t *testing.T) {
 	require.EqualValues(t, []byte("key"), e.Key)
 	require.EqualValues(t, []byte("value"), e.Value)
 	require.Equal(t, byte(1), e.Meta)
+	require.Equal(t, byte(2), e.UserMeta)
 	require.Equal(t, entry.ExpiresAt, e.ExpiresAt)
 }

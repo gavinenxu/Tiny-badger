@@ -13,6 +13,7 @@ type Entry struct {
 	Value     []byte
 	ExpiresAt uint64
 	Meta      byte
+	UserMeta  byte
 }
 
 func NewEntry(key, val []byte) *Entry {
@@ -34,20 +35,22 @@ type ValuePointer struct {
 }
 
 // Header
-// +----+------+------+---------+
-// |Meta|KeyLen|ValLen|ExpiresAt|
-// +----+------+------+---------+
+// +----+--------+------+------+---------+
+// |Meta|UserMeta|KeyLen|ValLen|ExpiresAt|
+// +----+--------+------+------+---------+
 // meta is invariant size, others are variant size
 type Header struct {
 	KeyLen    uint32
 	ValLen    uint32
 	ExpiresAt uint64
 	Meta      byte
+	UserMeta  byte
 }
 
 func (h *Header) Encode(buf []byte) int {
 	buf[0] = h.Meta
-	idx := 1
+	buf[1] = h.UserMeta
+	idx := 2
 	idx += binary.PutUvarint(buf[idx:], uint64(h.KeyLen))
 	idx += binary.PutUvarint(buf[idx:], uint64(h.ValLen))
 	idx += binary.PutUvarint(buf[idx:], h.ExpiresAt)
@@ -56,7 +59,8 @@ func (h *Header) Encode(buf []byte) int {
 
 func (h *Header) Decode(buf []byte) int {
 	h.Meta = buf[0]
-	idx := 1
+	h.UserMeta = buf[1]
+	idx := 2
 	kLen, cnt := binary.Uvarint(buf[idx:])
 	h.KeyLen = uint32(kLen)
 	idx += cnt

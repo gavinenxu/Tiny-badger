@@ -56,9 +56,9 @@ func TestBasic(t *testing.T) {
 	v4 := newValue(40)
 	v5 := newValue(50)
 
-	l.Put(utils.KeyWithTs([]byte("key1"), 0), structs.ValueStruct{Value: v1, Meta: 55})
-	l.Put(utils.KeyWithTs([]byte("key2"), 2), structs.ValueStruct{Value: v2, Meta: 56})
-	l.Put(utils.KeyWithTs([]byte("key3"), 0), structs.ValueStruct{Value: v3, Meta: 57})
+	l.Put(utils.KeyWithTs([]byte("key1"), 0), structs.ValueStruct{Value: v1, Meta: 55, UserMeta: 22})
+	l.Put(utils.KeyWithTs([]byte("key2"), 2), structs.ValueStruct{Value: v2, Meta: 56, UserMeta: 23})
+	l.Put(utils.KeyWithTs([]byte("key3"), 0), structs.ValueStruct{Value: v3, Meta: 57, UserMeta: 24})
 
 	v := l.Get(utils.KeyWithTs([]byte("key"), 0))
 	require.True(t, v.Value == nil)
@@ -67,6 +67,7 @@ func TestBasic(t *testing.T) {
 	require.True(t, v.Value != nil)
 	require.Equal(t, v1, v.Value)
 	require.Equal(t, byte(55), v.Meta)
+	require.Equal(t, byte(22), v.UserMeta)
 
 	v = l.Get(utils.KeyWithTs([]byte("key2"), 0))
 	require.True(t, v.Value == nil)
@@ -75,24 +76,28 @@ func TestBasic(t *testing.T) {
 	require.True(t, v.Value != nil)
 	require.Equal(t, v2, v.Value)
 	require.Equal(t, byte(56), v.Meta)
+	require.Equal(t, byte(23), v.UserMeta)
 
 	v = l.Get(utils.KeyWithTs([]byte("key3"), 0))
 	require.True(t, v.Value != nil)
 	require.Equal(t, v3, v.Value)
 	require.Equal(t, byte(57), v.Meta)
+	require.Equal(t, byte(24), v.UserMeta)
 
 	// put new value for a key with new ts
-	l.Put(utils.KeyWithTs([]byte("key3"), 1), structs.ValueStruct{Value: v4, Meta: 100})
+	l.Put(utils.KeyWithTs([]byte("key3"), 1), structs.ValueStruct{Value: v4, Meta: 100, UserMeta: 200})
 	v = l.Get(utils.KeyWithTs([]byte("key3"), 1))
 	require.True(t, v.Value != nil)
 	require.Equal(t, v4, v.Value)
 	require.Equal(t, byte(100), v.Meta)
+	require.Equal(t, byte(200), v.UserMeta)
 
-	l.Put(utils.KeyWithTs([]byte("key4"), 1), structs.ValueStruct{Value: v5, Meta: 200})
+	l.Put(utils.KeyWithTs([]byte("key4"), 1), structs.ValueStruct{Value: v5, Meta: 200, UserMeta: 255})
 	v = l.Get(utils.KeyWithTs([]byte("key4"), 1))
 	require.True(t, v.Value != nil)
 	require.Equal(t, v5, v.Value)
 	require.Equal(t, byte(200), v.Meta)
+	require.Equal(t, byte(255), v.UserMeta)
 }
 
 func TestFindNearest(t *testing.T) {
@@ -222,7 +227,7 @@ func TestConcurrentBasic(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			l.Put(key(i), structs.ValueStruct{Value: newValue(i), Meta: 0})
+			l.Put(key(i), structs.ValueStruct{Value: newValue(i), Meta: 0, UserMeta: 1})
 		}()
 	}
 	wg.Wait()
@@ -236,6 +241,7 @@ func TestConcurrentBasic(t *testing.T) {
 			require.NotNil(t, v)
 			require.Equal(t, newValue(i), v.Value)
 			require.Equal(t, byte(0), v.Meta)
+			require.Equal(t, byte(1), v.UserMeta)
 		}()
 	}
 	wg.Wait()
@@ -261,7 +267,7 @@ func TestConcurrentBasicBigValue(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			l.Put(key(i), structs.ValueStruct{Value: bigValue(i), Meta: 0})
+			l.Put(key(i), structs.ValueStruct{Value: bigValue(i), Meta: 0, UserMeta: 1})
 		}()
 	}
 	wg.Wait()
@@ -275,6 +281,7 @@ func TestConcurrentBasicBigValue(t *testing.T) {
 			require.NotNil(t, v)
 			require.Equal(t, bigValue(i), v.Value)
 			require.Equal(t, byte(0), v.Meta)
+			require.Equal(t, byte(1), v.UserMeta)
 		}()
 	}
 	wg.Wait()
@@ -294,7 +301,7 @@ func TestOneKey(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			l.Put(key, structs.ValueStruct{Value: newValue(i), Meta: 0})
+			l.Put(key, structs.ValueStruct{Value: newValue(i), Meta: 0, UserMeta: 1})
 		}()
 	}
 
@@ -310,6 +317,7 @@ func TestOneKey(t *testing.T) {
 			}
 			writtenValues.Add(1)
 			require.Equal(t, byte(0), v.Meta)
+			require.Equal(t, byte(1), v.UserMeta)
 			vv, err := strconv.Atoi(string(v.Value))
 			require.NoError(t, err)
 			require.True(t, vv >= 0 && vv < n)
@@ -454,7 +462,7 @@ func BenchmarkGetPut(b *testing.B) {
 					if r.Float32() < readFrac {
 						l.Get(randomKey(r))
 					} else {
-						l.Put(randomKey(r), structs.ValueStruct{Value: value, Meta: 0})
+						l.Put(randomKey(r), structs.ValueStruct{Value: value, Meta: 0, UserMeta: 0})
 					}
 				}
 			})

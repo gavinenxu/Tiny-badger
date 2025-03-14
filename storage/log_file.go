@@ -86,6 +86,7 @@ func (lf *LogFile) encodeEntry(buf *bytes.Buffer, entry *structs.Entry, offset u
 		ValLen:    uint32(len(entry.Value)),
 		ExpiresAt: entry.ExpiresAt,
 		Meta:      entry.Meta,
+		UserMeta:  entry.UserMeta,
 	}
 
 	// 1. create io writer
@@ -118,6 +119,7 @@ func (lf *LogFile) decodeEntry(buf []byte, offset uint32) (*structs.Entry, error
 		Value:     kv[h.KeyLen : h.KeyLen+h.ValLen],
 		ExpiresAt: h.ExpiresAt,
 		Meta:      h.Meta,
+		UserMeta:  h.UserMeta,
 	}
 	return e, nil
 }

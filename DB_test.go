@@ -15,6 +15,7 @@ func getEntry(i int) *structs.Entry {
 		Value:     newValue(i),
 		ExpiresAt: uint64(i),
 		Meta:      byte(i),
+		UserMeta:  byte(i + 1),
 	}
 }
 

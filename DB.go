@@ -261,6 +261,7 @@ func (db *DB) writeToLSM(req *request) error {
 			Value:     entry.Value,
 			ExpiresAt: entry.ExpiresAt,
 			Meta:      entry.Meta, // todo set bitValuePointer??
+			UserMeta:  entry.UserMeta,
 		}); err != nil {
 			return utils.Wrapf(err, "while writing to memTable")
 		}

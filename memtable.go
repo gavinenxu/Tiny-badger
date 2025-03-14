@@ -135,6 +135,7 @@ func (mt *MemTable) Put(key []byte, value structs.ValueStruct) error {
 		Value:     value.Value,
 		ExpiresAt: value.ExpiresAt,
 		Meta:      value.Meta,
+		UserMeta:  value.UserMeta,
 	}
 
 	// in-memory don't need WAL
